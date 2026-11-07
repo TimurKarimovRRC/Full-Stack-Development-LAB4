@@ -4,7 +4,7 @@ export function getDepartments() {
     return employeeRepo.getDepartments();
 }
 
-export function createEmployee(body: unknown) {
+export async function createEmployee(body: unknown) {
     if (typeof body !== "object" || body === null || Array.isArray(body)) {
         return { errors: ["Please send employee details."] };
     }
@@ -33,7 +33,7 @@ export function createEmployee(body: unknown) {
         lastName = body.lastName.trim() || undefined;
     }
 
-    const added = employeeRepo.addEmployee(
+    const added = await employeeRepo.addEmployee(
         body.departmentName.trim(),
         { firstName, lastName }
     );
@@ -42,5 +42,7 @@ export function createEmployee(body: unknown) {
         return { errors: ["Please select an existing department."] };
     }
 
-    return { departments: employeeRepo.getDepartments() };
+    const departments = await employeeRepo.getDepartments();
+
+    return { departments };
 }

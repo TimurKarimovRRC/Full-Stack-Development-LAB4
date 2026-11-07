@@ -1,45 +1,28 @@
-import { Guid } from "guid-typescript";
-import { roleData } from "../data/roles";
-import type { Role } from "../types/role";
 import type { Employee } from "../types/employee";
+import type { Role } from "../types/role";
 
-let roles: Role[] = structuredClone(roleData);
+async function readRoles(response: Response): Promise<Role[]> {
+    if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.errors?.[0] ?? "Could not load or save roles.");
+    }
+
+    return response.json();
+}
 
 export const organizationRepo = {
-    getRoles(): Role[] {
-        return structuredClone(roles);
+    async getRoles(signal?: AbortSignal): Promise<Role[]> {
+        const response = await fetch("/api/roles", { signal });
+        return readRoles(response);
     },
 
-    createRole(
-        title: string,
-        employee?: Employee
-    ): Role[] {
-        const newRole: Role = {
-            id: Guid.create().toString(),
-            title,
-            employee: employee ? { ...employee } : undefined,
-        };
-
-        roles = [...roles, newRole];
-
-        return structuredClone(roles);
-    },
-
-    updateRole(updatedRole: Role): Role[] {
-        roles = roles.map((role) => {
-            if (role.id === updatedRole.id) {
-                return structuredClone(updatedRole);
-            }
-
-            return role;
+    async createRole(employee: Employee, title: string): Promise<Role[]> {
+        const response = await fetch("/api/roles", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...employee, title }),
         });
 
-        return structuredClone(roles);
-    },
-
-    deleteRole(id: string): Role[] {
-        roles = roles.filter((role) => role.id !== id);
-
-        return structuredClone(roles);
+        return readRoles(response);
     },
 };

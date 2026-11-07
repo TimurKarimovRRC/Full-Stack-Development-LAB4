@@ -1,70 +1,62 @@
-import { useState } from "react";
-import type { FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import type { Role } from "../types/role";
 import { useFormInput } from "./useFormInput";
 import * as organizationService from "../services/organizationService";
 
-export function useOrganization() {
-    const [roles, setRoles] = useState<Role[]>(
-        organizationService.getRoles
-    );
+function errorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : "Unable to contact the server.";
+}
 
+export function useOrganization() {
+    const [roles, setRoles] = useState<Role[]>([]);
     const [errors, setErrors] = useState<string[]>([]);
 
     const firstName = useFormInput();
     const lastName = useFormInput();
     const roleTitle = useFormInput();
 
-    function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    useEffect(() => {
+        const controller = new AbortController();
+
+        organizationService.getRoles(controller.signal)
+            .then(setRoles)
+            .catch((error: unknown) => {
+                if (!controller.signal.aborted) {
+                    setErrors([errorMessage(error)]);
+                }
+            });
+
+        return () => controller.abort();
+    }, []);
+
+    async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
         setErrors([]);
 
-        const firstNameValidation = firstName.validate((value) =>
+        const nameCheck = firstName.validate((value) =>
             organizationService.validateInput(value, "firstName")
         );
 
-        const lastNameValidation = lastName.validate((value) =>
-            organizationService.validateInput(value, "lastName")
-        );
-
-        const roleValidation = roleTitle.validate((value) =>
+        const roleCheck = roleTitle.validate((value) =>
             organizationService.validateInput(value, "title")
         );
 
-        if (
-            !firstNameValidation.isValid ||
-            !lastNameValidation.isValid ||
-            !roleValidation.isValid
-        ) {
-            return;
+        if (!nameCheck.isValid || !roleCheck.isValid) return;
+
+        try {
+            const updatedRoles = await organizationService.createRole(
+                { firstName: firstName.value, lastName: lastName.value },
+                roleTitle.value
+            );
+
+            setRoles(updatedRoles);
+            firstName.reset();
+            lastName.reset();
+            roleTitle.reset();
+        } catch (error) {
+            setErrors([errorMessage(error)]);
         }
-
-        const result = organizationService.createRole(
-            {
-                firstName: firstName.value,
-                lastName: lastName.value,
-            },
-            roleTitle.value
-        );
-
-        if (!result.isValid) {
-            setErrors(result.errors);
-            return;
-        }
-
-        setRoles(result.roles);
-
-        firstName.reset();
-        lastName.reset();
-        roleTitle.reset();
     }
 
-    return {
-        roles,
-        firstName,
-        lastName,
-        roleTitle,
-        errors,
-        handleSubmit,
-    };
+    return { roles, firstName, lastName, roleTitle, errors, handleSubmit };
 }

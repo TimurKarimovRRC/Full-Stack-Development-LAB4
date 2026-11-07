@@ -53,7 +53,7 @@ async function seed() {
                 },
             });
         }
-    });
+    }, { timeout: 60_000 });
 }
 
 try {

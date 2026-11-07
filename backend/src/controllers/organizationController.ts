@@ -1,12 +1,13 @@
 import type { Request, Response } from "express";
 import * as organizationService from "../services/organizationService.js";
 
-export function getRoles(_request: Request, response: Response) {
-    response.json(organizationService.getRoles());
+export async function getRoles(_request: Request, response: Response) {
+    const roles = await organizationService.getRoles();
+    response.json(roles);
 }
 
-export function createRole(request: Request, response: Response) {
-    const result = organizationService.createRole(request.body);
+export async function createRole(request: Request, response: Response) {
+    const result = await organizationService.createRole(request.body);
 
     if ("errors" in result) {
         response.status(result.status).json({ errors: result.errors });

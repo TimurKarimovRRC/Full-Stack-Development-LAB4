@@ -9,7 +9,7 @@ export function getRoles() {
     return organizationRepo.getRoles();
 }
 
-export function createRole(body: unknown): RoleResult {
+export async function createRole(body: unknown): Promise<RoleResult> {
     if (typeof body !== "object" || body === null || Array.isArray(body)) {
         return { status: 400, errors: ["Please send role details."] };
     }
@@ -41,24 +41,17 @@ export function createRole(body: unknown): RoleResult {
         lastName = body.lastName.trim() || undefined;
     }
 
-    const title = body.title.trim();
-    const employee = { firstName, lastName };
-
-    const matchingRoles = organizationRepo.getRoles().filter(
-        (role) => role.title.trim().toLowerCase() === title.toLowerCase()
+    const result = await organizationRepo.assignEmployee(
+        body.title.trim(),
+        { firstName, lastName }
     );
 
-    if (matchingRoles.some((role) => role.employee !== undefined)) {
+    if (result === "occupied") {
         return { status: 409, errors: ["This role is already occupied."] };
     }
 
-    const vacantRole = matchingRoles[0];
-
-    if (vacantRole) {
-        organizationRepo.fillRole(vacantRole.id, employee);
-        return { status: 200, roles: organizationRepo.getRoles() };
-    }
-
-    organizationRepo.createRole(title, employee);
-    return { status: 201, roles: organizationRepo.getRoles() };
+    return {
+        status: result === "created" ? 201 : 200,
+        roles: await organizationRepo.getRoles(),
+    };
 }
